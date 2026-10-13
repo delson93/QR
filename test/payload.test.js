@@ -1,0 +1,6 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {payload,safeStyle} from '../src/payload.js';
+test('WhatsApp includes country code and escapes message',()=>assert.equal(payload('whatsapp',{phone:'+91 7676374441',message:'Print & scan'}),'https://wa.me/917676374441?text=Print%20%26%20scan'));
+test('reject unsafe redirect protocols',()=>{for(const url of ['javascript:alert(1)','file:///etc/passwd','data:text/plain,test'])assert.throws(()=>payload('link',{url}));});
+test('UPI amount and payee roundtrip',()=>{const u=new URL(payload('upi',{upi:'shop@bank',payee:'Scan & Xerox',amount:'15.50',message:'Copies'}));assert.equal(u.protocol,'upi:');assert.equal(u.searchParams.get('pn'),'Scan & Xerox');assert.equal(u.searchParams.get('am'),'15.50');assert.throws(()=>payload('upi',{upi:'shop@bank',payee:'Shop',amount:'-1'}));});
+test('email subject cannot inject parameters',()=>assert.match(payload('email',{email:'a@b.com',subject:'Hello&bcc=evil@test.com'}),/subject=Hello%26bcc%3Devil%40test.com/));
+test('reject low contrast and bound caption',()=>{assert.throws(()=>safeStyle({color:'#ffffff'}));assert.equal(safeStyle({caption:'a'.repeat(200)}).caption.length,120);assert.equal(safeStyle({dots:'invalid'}).dots,'rounded');});

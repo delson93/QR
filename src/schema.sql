@@ -1,0 +1,10 @@
+CREATE TABLE IF NOT EXISTS plans(id serial PRIMARY KEY,name text NOT NULL,price_paise integer NOT NULL DEFAULT 0 CHECK(price_paise>=0),qr_limit integer NOT NULL DEFAULT 0 CHECK(qr_limit>=0),retention_days integer NOT NULL DEFAULT 1 CHECK(retention_days BETWEEN 1 AND 3650),ai_limit integer NOT NULL DEFAULT 0 CHECK(ai_limit>=0),active boolean NOT NULL DEFAULT true);
+INSERT INTO plans(id,name,price_paise,qr_limit,retention_days,ai_limit) VALUES(1,'Free',0,0,1,0),(2,'Pro',19900,100,90,30),(3,'Business',49900,1000,365,150) ON CONFLICT DO NOTHING;
+SELECT setval(pg_get_serial_sequence('plans','id'),GREATEST((SELECT max(id) FROM plans),1));
+CREATE TABLE IF NOT EXISTS users(id uuid PRIMARY KEY,email text UNIQUE NOT NULL,password text NOT NULL,role text NOT NULL DEFAULT 'user' CHECK(role IN ('user','admin')),plan_id integer REFERENCES plans(id) DEFAULT 1,paid_until timestamptz,created_at timestamptz NOT NULL DEFAULT now());
+CREATE TABLE IF NOT EXISTS qr_codes(id uuid PRIMARY KEY,user_id uuid REFERENCES users(id),name text NOT NULL,type text NOT NULL,payload text,style jsonb NOT NULL DEFAULT '{}',token text UNIQUE NOT NULL,one_time boolean NOT NULL DEFAULT false,expires_at timestamptz,consumed_at timestamptz,disabled boolean NOT NULL DEFAULT false,views integer NOT NULL DEFAULT 0,created_at timestamptz NOT NULL DEFAULT now());
+CREATE INDEX IF NOT EXISTS qr_owner ON qr_codes(user_id);
+CREATE TABLE IF NOT EXISTS ai_usage(user_id uuid REFERENCES users(id),month text,calls integer NOT NULL DEFAULT 0,PRIMARY KEY(user_id,month));
+CREATE TABLE IF NOT EXISTS audit_log(id bigserial PRIMARY KEY,actor uuid REFERENCES users(id),action text NOT NULL,details jsonb NOT NULL,created_at timestamptz NOT NULL DEFAULT now());
+CREATE TABLE IF NOT EXISTS session(sid varchar PRIMARY KEY,sess json NOT NULL,expire timestamp NOT NULL);
+CREATE INDEX IF NOT EXISTS session_expire ON session(expire);
